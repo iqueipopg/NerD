@@ -1,57 +1,27 @@
-import pandas as pd
-import numpy as np
-from transformers import BertTokenizer, BertForSequenceClassification
-import torch
+import csv
+import torch  # Importamos torch para verificar si la GPU está disponible
+from transformers import pipeline
 
-# Determine if a GPU is available and set the device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Verificar si hay una GPU disponible y asignarla
+device = 0 if torch.cuda.is_available() else -1
 
-# Load the pre-trained Sentiment Analysis model (5-class classification)
-tokenizer = BertTokenizer.from_pretrained(
-    "nlptown/bert-base-multilingual-uncased-sentiment"
-)
-model = BertForSequenceClassification.from_pretrained(
-    "nlptown/bert-base-multilingual-uncased-sentiment", num_labels=5
-)
-
-# Move the model to GPU (if available)
-model.to(device)
+# Cargar el modelo en la GPU si está disponible
+sentiment_analyzer = pipeline("sentiment-analysis", device=device)
 
 
-def predict_sentiment(text):
+def classify_sentiment(sentences):
     """
-    Predicts the sentiment of a given text using a pre-trained BERT model.
+    Classifies the sentiment of a list of sentences using a preloaded sentiment analyzer.
 
     Args:
-        text (str): The input sentence to analyze.
+        sentences (list of str): List of sentences to classify.
 
     Returns:
-        int: The sentiment class mapped to:
-            - 0: Negative (includes very negative and negative)
-            - 1: Neutral
-            - 2: Positive (includes very positive and positive)
+        list of int: A list of sentiment labels, where 0 = negative, 1 = positive.
     """
-    # Tokenize the input
-    inputs = tokenizer(
-        text, return_tensors="pt", truncation=True, padding=True, max_length=512
-    )
-
-    # Move tensors to the available device (GPU if available)
-    inputs = {key: value.to(device) for key, value in inputs.items()}
-
-    # Perform inference without gradient computation (evaluation mode)
-    with torch.no_grad():
-        outputs = model(**inputs)
-        logits = outputs.logits
-        prediction = torch.argmax(logits, dim=1).item()
-
-    # Map the 5 original classes to 3 custom sentiment classes
-    if prediction in [0, 1]:  # Very negative or negative
-        return 0
-    elif prediction == 2:  # Neutral
-        return 1
-    else:  # Very positive or positive
-        return 2
+    results = sentiment_analyzer(sentences)
+    sentiment_map = {"NEGATIVE": 0, "POSITIVE": 1}
+    return [sentiment_map.get(result["label"].upper(), 1) for result in results]
 
 
 def add_sentiment_column(input_tsv, output_tsv):
@@ -60,11 +30,12 @@ def add_sentiment_column(input_tsv, output_tsv):
     for each sentence, and saves a new TSV file with an additional sentiment column.
 
     Args:
-        input_tsv (str): Path to the input TSV file.
-        output_tsv (str): Path to save the processed TSV file.
+        input_tsv (str): Path to the original TSV file (two columns: word, NER).
+        output_tsv (str): Path where the new TSV with sentiment will be saved.
 
     Returns:
-        None. A new TSV file is saved with three columns: word, NER label, sentiment label.
+        None. A new TSV file is saved with three columns: word, NER, sentiment (0 or 1).
+        Sentences are separated by blank lines.
     """
     # Read the original TSV file
     with open(input_tsv, "r", encoding="utf-8") as file:
@@ -73,11 +44,9 @@ def add_sentiment_column(input_tsv, output_tsv):
     sentence = []
     sentences = []
     ner_labels = []
-    ner_labels_sentence = []  # Initialize the variable here
+    ner_labels_sentence = []
 
-    # Process the lines of the file
     for line in lines:
-        # If we find an empty line, it means a sentence has ended
         if line.strip() == "":
             sentences.append(" ".join(sentence))
             ner_labels.append(ner_labels_sentence)
@@ -88,30 +57,26 @@ def add_sentiment_column(input_tsv, output_tsv):
             sentence.append(word)
             ner_labels_sentence.append(ner_label)
 
-    # Process the last sentences
     if sentence:
         sentences.append(" ".join(sentence))
         ner_labels.append(ner_labels_sentence)
 
-    # List to store the rows of the new file
     new_rows = []
+    sentiments = classify_sentiment(sentences)
 
-    # Predict sentiment for each sentence and add the column
-    for sentence, ner_labels_sentence in zip(sentences, ner_labels):
-        sentiment = predict_sentiment(sentence)  # Get sentiment of the sentence
-        for word, ner_label in zip(sentence.split(), ner_labels_sentence):
+    for sentence_text, ner_labels_sentence, sentiment in zip(
+        sentences, ner_labels, sentiments
+    ):
+        for word, ner_label in zip(sentence_text.split(), ner_labels_sentence):
             new_rows.append([word, ner_label, str(sentiment)])
-        new_rows.append([])  # Empty line to separate sentences
+        new_rows.append([])  # Blank line to separate sentences
 
-    # Save the TSV file with the new sentiment column
     with open(output_tsv, "w", encoding="utf-8") as f:
         for row in new_rows:
             if row:
                 f.write("\t".join(row) + "\n")
             else:
                 f.write("\n")
-
-    print(f"TSV file with Sentiment Analysis saved: {output_tsv}")
 
 
 def load_clean_conll(filepath):
@@ -156,3 +121,55 @@ def load_clean_conll(filepath):
     # Save the TSV file
     with open("test_data.tsv", "w", encoding="utf-8") as f:
         f.write("\n".join(tsv_lines))
+
+
+def extract_balanced(input_file, output_file, max_per_class=5000):
+    """
+    Reads a TSV-formatted file with NER and sentiment annotations, extracts
+    sentences with balanced sentiment labels (positive and negative), and
+    saves them in a new file.
+
+    Args:
+        input_file (str): Path to the input TSV file.
+        output_file (str): Path where the balanced dataset will be saved.
+        max_per_class (int): Maximum number of sentences per sentiment class.
+
+    Returns:
+        None. A TSV file is saved with 2 * max_per_class sentences (balanced by sentiment),
+        separating each sentence with a blank line.
+    """
+    with open(input_file, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+
+    positives = []
+    negatives = []
+    current_sentence = []
+    current_sa = None  # Sentiment Analysis label of the sentence
+
+    for line in lines:
+        if line.strip() == "":
+            if current_sentence and current_sa is not None:
+                if current_sa == "1" and len(positives) < max_per_class:
+                    positives.append(current_sentence)
+                elif current_sa == "0" and len(negatives) < max_per_class:
+                    negatives.append(current_sentence)
+
+                # Stop if both classes have reached the limit
+                if len(positives) == max_per_class and len(negatives) == max_per_class:
+                    break
+
+            current_sentence = []
+            current_sa = None
+        else:
+            current_sentence.append(line)
+            parts = line.strip().split("\t")
+            if len(parts) == 3:
+                sa = parts[2]
+                if current_sa is None:
+                    current_sa = sa  # Take the sentiment from the first token
+
+    # Write the selected sentences to the output file
+    with open(output_file, "w", encoding="utf-8") as f:
+        for sentence in positives + negatives:
+            f.writelines(sentence)
+            f.write("\n")  # Add blank line between sentences
