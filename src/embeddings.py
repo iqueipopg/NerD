@@ -1,52 +1,54 @@
-from gensim.models import KeyedVectors
 import numpy as np
 import torch
 from torch.nn import Embedding
 
+from gensim.models import KeyedVectors
 
-class Word2VecEmbeddings:
-    def __init__(self, path_to_bin, unk_token="<UNK>", pad_token="<PAD>"):
-        print("Loading Word2Vec model...")
-        self.word2vec = KeyedVectors.load_word2vec_format(path_to_bin, binary=True)
-        self.embedding_dim = self.word2vec.vector_size
-        self.unk_token = unk_token
-        self.pad_token = pad_token
 
-        self.word2idx = {}
-        self.idx2word = []
-        self.embeddings_matrix = None
+def get_embedding(word, model, unk_token="UNK"):
+    """
+    Retrieves the embedding vector for a given word from a preloaded embedding model.
 
-        self._build_vocab()
+    Args:
+        word (str): The word for which the embedding is requested.
+        model (KeyedVectors): A preloaded word embedding model (e.g., Word2Vec).
+        unk_token (str, optional): Token to use if the word is not found in the model. Defaults to "UNK".
 
-    def _build_vocab(self):
-        vocab = [self.pad_token, self.unk_token] + list(
-            self.word2vec.key_to_index.keys()
-        )
-        self.word2idx = {word: idx for idx, word in enumerate(vocab)}
-        self.idx2word = vocab
+    Returns:
+        torch.Tensor: A 1D tensor representing the embedding of the word, or the embedding of the unknown token if the word is not in the model.
+    """
+    # Check if the word is in the model's vocabulary
+    if word in model:
+        return torch.tensor(model[word], dtype=torch.float32)
+    elif unk_token in model:
+        return torch.tensor(model[unk_token], dtype=torch.float32)
 
-        # Init embedding matrix
-        vocab_size = len(vocab)
-        self.embeddings_matrix = np.zeros(
-            (vocab_size, self.embedding_dim), dtype=np.float32
-        )
-        self.embeddings_matrix[self.word2idx[self.unk_token]] = np.random.normal(
-            size=self.embedding_dim
-        )
 
-        for word in self.word2vec.key_to_index:
-            idx = self.word2idx[word]
-            self.embeddings_matrix[idx] = self.word2vec[word]
+def pad_embeddings(sequences, lenght, embedding_dim=300, padding="post"):
+    """
+    Pads a batch of sequences of word embeddings to the same length.
 
-    def get_embedding_layer(self, freeze=True):
-        weights = torch.tensor(self.embeddings_matrix)
-        embedding_layer = Embedding.from_pretrained(
-            weights, freeze=freeze, padding_idx=self.word2idx[self.pad_token]
-        )
-        return embedding_layer
+    Args:
+        sequences (list of list of torch.Tensor): Each inner list contains word embeddings for a sentence.
+        embedding_dim (int): Dimension of the word embeddings.
+        padding (str): 'post' to pad at the end, 'pre' to pad at the beginning.
 
-    def words_to_indices(self, words):
-        return [
-            self.word2idx.get(word.lower(), self.word2idx[self.unk_token])
-            for word in words
-        ]
+    Returns:
+        torch.Tensor: A 3D tensor of shape (batch_size, max_seq_len, embedding_dim).
+    """
+    max_len = lenght
+    padded = []
+
+    for seq in sequences:
+        num_padding = max_len - len(seq)
+        if padding == "post":
+            pad = [torch.zeros(embedding_dim) for _ in range(num_padding)]
+            new_seq = seq + pad
+        elif padding == "pre":
+            pad = [torch.zeros(embedding_dim) for _ in range(num_padding)]
+            new_seq = pad + seq
+        else:
+            raise ValueError("padding must be 'post' or 'pre'")
+        padded.append(torch.stack(new_seq))
+
+    return torch.stack(padded)  # Shape: (batch_size, max_seq_len, embedding_dim)

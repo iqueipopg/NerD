@@ -18,10 +18,15 @@ class BiLSTMTagger(nn.Module):
         )
 
         self.hidden_dim = hidden_dim
-        self.ner_classifier = nn.Linear(hidden_dim * 2, ner_num_classes)
-        self.sa_classifier = nn.Linear(
-            hidden_dim * 2, 1
-        )  # Binary classification (0 or 1)
+        self.ner_classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, ner_num_classes),
+        )
+
+        self.sa_classifier = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim), nn.ReLU(), nn.Linear(hidden_dim, 1)
+        )
 
     def forward(self, x, lengths):
         """
@@ -32,11 +37,14 @@ class BiLSTMTagger(nn.Module):
             ner_logits (batch_size, seq_len, ner_num_classes)
             sa_logits (batch_size, 1)
         """
-        embedded = self.embedding  # (batch_size, seq_len, embedding_dim)
+        lengths_cpu = lengths.cpu().to(
+            dtype=torch.int64
+        )  # Ensure lengths are on the same device as x
+        embedded = x  # (batch_size, seq_len, embedding_dim)
 
         # Pack for efficiency
         packed_embedded = nn.utils.rnn.pack_padded_sequence(
-            embedded, lengths, batch_first=True, enforce_sorted=False
+            embedded, lengths_cpu, batch_first=True, enforce_sorted=False
         )
         packed_output, (hidden, _) = self.lstm(packed_embedded)
         lstm_out, _ = nn.utils.rnn.pad_packed_sequence(
