@@ -5,14 +5,9 @@ import torch.nn.functional as F
 
 class BiLSTMTagger(nn.Module):
     def __init__(
-        self, embedding_matrix, hidden_dim, ner_num_classes, freeze_embeddings=True
+        self, embedding_dim, hidden_dim, ner_num_classes, freeze_embeddings=True
     ):
         super(BiLSTMTagger, self).__init__()
-
-        vocab_size, embedding_dim = embedding_matrix.shape
-        self.embedding = nn.Embedding.from_pretrained(
-            torch.tensor(embedding_matrix, dtype=torch.float), freeze=freeze_embeddings
-        )
 
         self.lstm = nn.LSTM(
             embedding_dim,
@@ -37,7 +32,7 @@ class BiLSTMTagger(nn.Module):
             ner_logits (batch_size, seq_len, ner_num_classes)
             sa_logits (batch_size, 1)
         """
-        embedded = self.embedding(x)  # (batch_size, seq_len, embedding_dim)
+        embedded = self.embedding  # (batch_size, seq_len, embedding_dim)
 
         # Pack for efficiency
         packed_embedded = nn.utils.rnn.pack_padded_sequence(
