@@ -1,3 +1,4 @@
 # folders
 /data/NLP_Data/
 venv/
+__pycache__/
