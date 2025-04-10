@@ -2,3 +2,5 @@
 /data/NLP_Data/
 venv/
 __pycache__/
+models/
+

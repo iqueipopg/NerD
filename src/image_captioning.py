@@ -18,16 +18,14 @@ model = (
 )
 
 
-def generate_local_caption(image_path: str) -> str:
+def generate_local_caption(image: Image.Image) -> str:
     try:
-        with Image.open(image_path) as img:
-            inputs = processor(img.convert("RGB"), return_tensors="pt").to(
-                device, dtype
-            )
-            generated_ids = model.generate(**inputs)
-            return processor.decode(generated_ids[0], skip_special_tokens=True)
+        # Ahora procesamos directamente el objeto PIL.Image
+        inputs = processor(image.convert("RGB"), return_tensors="pt").to(device, dtype)
+        generated_ids = model.generate(**inputs)
+        return processor.decode(generated_ids[0], skip_special_tokens=True)
     except Exception as e:
-        print(f"Error procesando {image_path}: {str(e)}")
+        print(f"Error procesando la imagen: {str(e)}")
         return ""
 
 
