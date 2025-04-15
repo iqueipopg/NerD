@@ -144,8 +144,6 @@ NerD/
 - **Binary Sentiment Classification**  
 - **Image-to-Text Captioning**
 
----
-
 ## 🙌 Credits
 
 This project was developed as part of the **Deep Learning + NLP** course at **Universidad Pontificia Comillas, ICAI**.
