@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 ![NerD Banner](images/banner.jpg)
+=======
+![NerD Banner](banner.jpg) 
+>>>>>>> dda5e554d43d74cf799e88029ad799f29bcb3756
 
 # NerD 🧠📸
 
@@ -162,3 +166,7 @@ This project was developed as part of the **Deep Learning + NLP** course at **Un
 - **Open Source Contributors** whose libraries made this project possible.
 
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> dda5e554d43d74cf799e88029ad799f29bcb3756
