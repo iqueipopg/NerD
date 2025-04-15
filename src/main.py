@@ -1,86 +1,92 @@
+import os
 import torch
 from gensim.models import KeyedVectors
 from src.models import BiLSTMTagger
-from src.data import create_tag_vocab
-from src.embeddings import get_embedding, pad_embeddings
+from src.data import collate_fn
+from src.embeddings import get_embedding
+from transformers import logging
+from src.image_captioning import generate_local_caption  # <-- Asegúrate del path
+
+# Evitar warnings molestos
+logging.set_verbosity_error()
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+EMBEDDING_DIM = 300
+
+# ==== CARGA DE MODELOS ====
+print("Cargando modelos...")
+
+# Word2Vec
+w2v_model = KeyedVectors.load_word2vec_format(
+    "data/NLP_Data/embeddings/GoogleNews-vectors-negative300.bin.gz", binary=True
+)
+
+# tag2idx
 import pickle
 
+with open("models/tag2idx.pkl", "rb") as f:
+    tag2idx = pickle.load(f)
+idx2tag = {v: k for k, v in tag2idx.items()}
 
-def load_model_and_resources(model_path, tag2idx_path, embedding_path, device):
-    with open(tag2idx_path, "rb") as f:
-        tag2idx = pickle.load(f)
-    idx2tag = {i: tag for tag, i in tag2idx.items()}
+# Modelo BiLSTM
+model = BiLSTMTagger(
+    embedding_dim=EMBEDDING_DIM, hidden_dim=128, ner_num_classes=len(tag2idx)
+)
+model.load_state_dict(torch.load("models/best_model.pt", map_location=DEVICE))
+model.to(DEVICE)
+model.eval()
 
-    print("Cargando embeddings...")
-    w2v_model = KeyedVectors.load_word2vec_format(embedding_path, binary=True)
-    print("Embeddings cargados.")
-
-    print("Cargando modelo...")
-    model = BiLSTMTagger(
-        embedding_dim=300, hidden_dim=128, ner_num_classes=len(tag2idx)
-    )
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.to(device)
-    model.eval()
-    print("Modelo cargado.")
-
-    return model, w2v_model, tag2idx, idx2tag
+print("Modelos cargados.")
 
 
-def process_sentence(sentence, w2v_model, tag2idx, device):
-    words = sentence.strip().split()
+# ==== PREDICCIÓN ====
+def predict_from_text(text):
+    words = text.strip().split()
     embeddings = [get_embedding(word, w2v_model) for word in words]
-    input_tensor = pad_embeddings([embeddings], len(words)).to(device)
-    lengths_tensor = torch.tensor([len(words)]).to(device)
-    return words, input_tensor, lengths_tensor
+    input_tensor = torch.stack(embeddings).unsqueeze(0).to(DEVICE)  # (1, seq_len, 300)
+    lengths = torch.tensor([len(words)]).to(DEVICE)
 
-
-def predict(model, input_tensor, lengths_tensor):
     with torch.no_grad():
-        ner_logits, sa_logits = model(input_tensor, lengths_tensor)
-        ner_preds = torch.argmax(ner_logits, dim=-1).squeeze(0).cpu().tolist()
-        sa_pred = (sa_logits > 0.5).long().item()
-    return ner_preds, sa_pred
+        ner_logits, sa_logits = model(input_tensor, lengths)
+        ner_preds = torch.argmax(ner_logits, dim=-1)[0][: lengths.item()].cpu().tolist()
+        sentiment = "Positivo" if sa_logits.item() > 0.5 else "Negativo"
+
+    ner_labels = [idx2tag[i] for i in ner_preds]
+    print("\nResultado:")
+    for word, label in zip(words, ner_labels):
+        print(f"{word} [{label}]", end=" ")
+    print(f"\nSentimiento: {sentiment}\n")
 
 
-def main():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # Rutas a modelo y recursos
-    model_path = "models/best_model.pt"
-    tag2idx_path = "models/tag2idx.pkl"
-    embedding_path = "data/NLP_Data/embeddings/GoogleNews-vectors-negative300.bin.gz"
-
-    # Cargar una sola vez
-    model, w2v_model, tag2idx, idx2tag = load_model_and_resources(
-        model_path, tag2idx_path, embedding_path, device
-    )
-
+# ==== LOOP INTERACTIVO ====
+if __name__ == "__main__":
     print(
-        "\nEscribí frases para analizarlas (NER + Sentimiento). Escribí 'exit' para salir.\n"
+        "Escribe una frase. También puedes añadir una imagen opcional para enriquecer el análisis."
     )
+    print("Escribe 'exit' para salir.\n")
 
     while True:
-        sentence = input("Frase > ").strip()
-        if sentence.lower() in {"exit", "salir"}:
-            print("👋 Hasta luego.")
+        text_input = input("Frase: ").strip()
+        if text_input.lower() in {"exit", "quit"}:
             break
-        if not sentence:
-            continue
 
-        words, input_tensor, lengths_tensor = process_sentence(
-            sentence, w2v_model, tag2idx, device
-        )
-        ner_preds, sa_pred = predict(model, input_tensor, lengths_tensor)
+        use_image = input("¿Quieres añadir una imagen? (s/n): ").strip().lower()
 
-        # Mostrar resultados
-        print("\nSentimiento:", "Positivo" if sa_pred == 1 else "Negativo")
-        print("Entidades NER:")
-        for word, tag_idx in zip(words, ner_preds):
-            tag = idx2tag.get(tag_idx, "O")
-            print(f"  {word:15} -> {tag}")
-        print("-" * 50)
+        final_text = text_input
 
+        if use_image == "s":
+            image_path = input("Ruta de imagen (.jpg/.png): ").strip()
+            if os.path.isfile(image_path) and image_path.lower().endswith(
+                (".jpg", ".jpeg", ".png")
+            ):
+                print("Procesando imagen...")
+                caption = generate_local_caption(image_path)
+                print(f"Texto generado por imagen: '{caption}'")
+                final_text += " " + caption
+            else:
+                print("Imagen no válida. Se usará solo el texto.")
 
-if __name__ == "__main__":
-    main()
+        if final_text.strip():
+            predict_from_text(final_text)
+        else:
+            print("No se pudo procesar el input.\n")

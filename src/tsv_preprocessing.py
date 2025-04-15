@@ -1,4 +1,3 @@
-import csv
 import torch  # Importamos torch para verificar si la GPU está disponible
 from transformers import pipeline
 

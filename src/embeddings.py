@@ -1,8 +1,4 @@
-import numpy as np
 import torch
-from torch.nn import Embedding
-
-from gensim.models import KeyedVectors
 
 
 def get_embedding(word, model, unk_token="UNK"):

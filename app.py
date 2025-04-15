@@ -1,50 +1,40 @@
-import streamlit as st
+import gradio as gr
 import torch
-from PIL import Image
 from gensim.models import KeyedVectors
 from src.models import BiLSTMTagger
 from src.embeddings import get_embedding
 from src.image_captioning import generate_local_caption
 import pickle
-import os
-
-# Asegúrate de que esta línea esté antes de cualquier otra función de Streamlit
-st.set_page_config(page_title="NLP + Imagen", layout="centered")
-
-# Configurar dispositivo
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-EMBEDDING_DIM = 300
-
 
 # Cargar modelos con caché
-@st.cache_resource
-def load_models():
-    w2v_model = KeyedVectors.load_word2vec_format(
-        "data/NLP_Data/embeddings/GoogleNews-vectors-negative300.bin.gz", binary=True
-    )
-    with open("models/tag2idx.pkl", "rb") as f:
-        tag2idx = pickle.load(f)
-    idx2tag = {v: k for k, v in tag2idx.items()}
+w2v_model = KeyedVectors.load_word2vec_format(
+    "data/NLP_Data/embeddings/GoogleNews-vectors-negative300.bin.gz", binary=True
+)
+with open("models/tag2idx.pkl", "rb") as f:
+    tag2idx = pickle.load(f)
+idx2tag = {v: k for k, v in tag2idx.items()}
 
-    model = BiLSTMTagger(
-        embedding_dim=EMBEDDING_DIM, hidden_dim=128, ner_num_classes=len(tag2idx)
-    )
-    model.load_state_dict(torch.load("models/best_model.pt", map_location=DEVICE))
-    model.to(DEVICE)
-    model.eval()
-
-    return w2v_model, model, idx2tag
+model = BiLSTMTagger(embedding_dim=300, hidden_dim=128, ner_num_classes=len(tag2idx))
+model.load_state_dict(torch.load("models/best_model.pt", map_location="cpu"))
+model.eval()
 
 
-w2v_model, model, idx2tag = load_models()
+# Función principal
+def analyze_input(image, text):
+    final_text = text
+    caption = None
 
+    if image:
+        caption = generate_local_caption(image)
+        final_text += " " + (caption if caption else "")
 
-# Predicción
-def predict_from_text(text):
-    words = text.strip().split()
+    if not final_text.strip():
+        return "⚠️ Could not process the input.", None, None
+
+    words = final_text.strip().split()
     embeddings = [get_embedding(word, w2v_model) for word in words]
-    input_tensor = torch.stack(embeddings).unsqueeze(0).to(DEVICE)
-    lengths = torch.tensor([len(words)]).to(DEVICE)
+    input_tensor = torch.stack(embeddings).unsqueeze(0)
+    lengths = torch.tensor([len(words)])
 
     with torch.no_grad():
         ner_logits, sa_logits = model(input_tensor, lengths)
@@ -52,44 +42,95 @@ def predict_from_text(text):
         sentiment = "Positivo" if sa_logits.item() > 0.5 else "Negativo"
 
     ner_labels = [idx2tag[i] for i in ner_preds]
-    return list(zip(words, ner_labels)), sentiment
+    ner_output = " ".join([f"**{w}** [`{t}`]" for w, t in zip(words, ner_labels)])
+
+    return (
+        f"📝 Generated caption: *{caption}*" if caption else "",
+        ner_output,
+        f"💬 Sentiment: **{sentiment}**",
+    )
 
 
-# Interfaz de Streamlit
-st.title("🧠 Análisis de Texto + Imagen")
-st.markdown(
-    "Escribe una frase y/o sube una imagen para obtener entidades nombradas y análisis de sentimiento."
-)
+# CSS personalizado con la fuente Poppins
+custom_css = """
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
-# Entrada de texto y subida de imagen
-text_input = st.text_area("✍️ Escribe tu frase aquí:")
-uploaded_image = st.file_uploader(
-    "📷 Sube una imagen (opcional):", type=["jpg", "jpeg", "png"]
-)
+body {
+    background-color: #F0F4FF;
+    color: #1E3A8A;
+    font-family: 'Poppins', sans-serif;
+}
 
-if st.button("🔍 Analizar"):
-    final_text = text_input
-    if uploaded_image:
-        # Convertir la imagen cargada a un formato PIL Image
-        image = Image.open(uploaded_image)
+.gradio-container {
+    background-color: #F0F4FF;
+}
 
-        # Ahora pasamos la imagen directamente a generate_local_caption
-        caption = generate_local_caption(
-            image
-        )  # Debes asegurarte que esta función acepte objetos PIL.Image
-        if not caption:  # Validar si la caption está vacía
-            st.warning("⚠️ No se pudo generar una descripción para la imagen.")
-        else:
-            st.image(image, caption="Imagen subida", use_container_width=True)
-            st.write(f"📝 Texto generado por imagen: *{caption}*")
-        final_text += " " + (caption if caption else "")
+textarea, input[type='text'] {
+    background-color: #E2E8F0 !important;
+    color: #1E3A8A !important;
+    border: 1px solid #60A5FA !important;
+    border-radius: 12px !important;
+}
 
-    if final_text.strip():
-        ner_results, sentiment = predict_from_text(final_text)
-        st.subheader("🧠 Resultado NER")
-        st.markdown(" ".join([f"**{w}** [`{t}`]" for w, t in ner_results]))
+button {
+    background-color: #93C5FD !important;
+    color: white !important;
+    border-radius: 12px !important;
+    border: none !important;
+    font-weight: bold;
+}
 
-        st.subheader("❤️ Sentimiento")
-        st.markdown(f"**{sentiment}**")
-    else:
-        st.warning("⚠️ No se pudo procesar el input.")
+button:hover {
+    background-color: #60A5FA !important;
+}
+
+h1 {
+    font-family: 'Poppins', sans-serif;
+    color: #1E3A8A;
+    text-align: center;
+    font-size: 48px; /* Tamaño de fuente más grande */
+    font-weight: 600;
+    overflow: hidden; /* Elimina la barra de desplazamiento */
+    white-space: nowrap; /* Evita que el texto se rompa */
+}
+
+p {
+    color: #1E3A8A;
+    text-align: center;
+}
+"""
+
+
+# Título y descripción de la aplicación
+title = """
+<div style='text-align: center;'>
+    <h1 style='font-family: "Poppins", sans-serif;'>🧠 NerD</h1>
+</div>
+"""
+
+description = "<p style='text-align: center;'>Upload an image, enter text, or both to get predictions from our deep learning model.</p>"
+
+with gr.Blocks(css=custom_css) as demo:
+    gr.Markdown(title)
+    gr.Markdown(description)
+
+    with gr.Row():
+        image_input = gr.Image(label="Upload an image (optional)", type="pil")
+        text_input = gr.Textbox(
+            label="Enter text", lines=4, placeholder="Write something..."
+        )
+
+    analyze_btn = gr.Button("Analyze")
+
+    caption_output = gr.Markdown()
+    ner_output = gr.Markdown()
+    sentiment_output = gr.Markdown()
+
+    analyze_btn.click(
+        fn=analyze_input,
+        inputs=[image_input, text_input],
+        outputs=[caption_output, ner_output, sentiment_output],
+    )
+
+if __name__ == "__main__":
+    demo.launch()

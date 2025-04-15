@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import classification_report, accuracy_score
 from gensim.models.keyedvectors import load_word2vec_format
-from src.data import NLPSentenceDataset, collate_fn, load_data, create_tag_vocab
+from src.data import NLPSentenceDataset, collate_fn, load_data
 from src.models import BiLSTMTagger
 
 
