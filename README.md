@@ -1,4 +1,4 @@
-![NerD Banner](images/banner.jpg)
+![NerD Banner](banner.jpg)
 
 # NerD 🧠📸
 
