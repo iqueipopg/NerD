@@ -57,20 +57,23 @@ NerD combines multiple deep learning components to perform robust analysis of mu
    git clone https://github.com/your-username/NerD.git
    cd NerD
    ```
+   
 2. Create a virtual environment and activate it (optional but recommended):
-  ```bash
+   ```bash
    python -m venv venv
    .\venv\Scripts\activate   # On Windows
    source venv/bin/activate # On macOS/Linux
-  ```
+   ```
+
 3. Install dependencies:
    ```bash
    pip install -r requirements.txt
-  ```
+   ```
+
 4. Run the app:
-  ```bash
+   ```bash
    python app.py
-  ```
+   ```
 
 ## 🚀 How to Use
 
