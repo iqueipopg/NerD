@@ -1,8 +1,7 @@
-<<<<<<< HEAD
-![NerD Banner](images/banner.jpg)
-=======
-![NerD Banner](banner.jpg) 
->>>>>>> dda5e554d43d74cf799e88029ad799f29bcb3756
+
+[NerD Banner](images/banner.jpg)
+
+
 
 # NerD 🧠📸
 
