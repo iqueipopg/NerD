@@ -68,7 +68,7 @@ NerD combines multiple deep learning components to perform robust analysis of mu
    pip install -r requirements.txt
   ```
 4. Run the app:
-```bash
+  ```bash
    python app.py
   ```
 
@@ -120,6 +120,8 @@ NerD/
     ├── models.py
     ├── train.py
     └── tsv_preprocessing.py
+```
+
 
 ## 🧠 Technologies Used
 
