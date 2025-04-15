@@ -1,8 +1,6 @@
 
 [NerD Banner](images/banner.jpg)
 
-
-
 # NerD 🧠📸
 
 **NerD** is a multitask natural language processing system that performs **Named Entity Recognition (NER)** and **Sentiment Analysis (SA)** simultaneously, enriched by **Image Captioning**. Designed to process and analyze multimodal content (text + image), NerD extracts structured information and sentiment context from real-world data, such as news or social media posts.
