@@ -6,6 +6,9 @@ from src.embeddings import get_embedding
 from src.image_captioning import generate_local_caption
 import pickle
 
+# Importar función de generación de alertas
+from src.alert_generation import generate_alert
+
 # Cargar modelos con caché
 w2v_model = KeyedVectors.load_word2vec_format(
     "data/NLP_Data/embeddings/GoogleNews-vectors-negative300.bin.gz", binary=True
@@ -19,7 +22,7 @@ model.load_state_dict(torch.load("models/best_model.pt", map_location="cpu"))
 model.eval()
 
 
-# Función principal
+# Nueva función principal: devuelve solo la alerta
 def analyze_input(image, text):
     final_text = text
     caption = None
@@ -29,7 +32,7 @@ def analyze_input(image, text):
         final_text += " " + (caption if caption else "")
 
     if not final_text.strip():
-        return "⚠️ Could not process the input.", None, None
+        return "⚠️ Could not process the input."
 
     words = final_text.strip().split()
     embeddings = [get_embedding(word, w2v_model) for word in words]
@@ -39,16 +42,50 @@ def analyze_input(image, text):
     with torch.no_grad():
         ner_logits, sa_logits = model(input_tensor, lengths)
         ner_preds = torch.argmax(ner_logits, dim=-1)[0][: lengths.item()].cpu().tolist()
-        sentiment = "Positivo" if sa_logits.item() > 0.5 else "Negativo"
+        sentiment_label = "positive" if sa_logits.item() > 0.5 else "negative"
 
     ner_labels = [idx2tag[i] for i in ner_preds]
-    ner_output = " ".join([f"**{w}** [`{t}`]" for w, t in zip(words, ner_labels)])
 
-    return (
-        f"📝 Generated caption: *{caption}*" if caption else "",
-        ner_output,
-        f"💬 Sentiment: **{sentiment}**",
-    )
+    # Agrupar entidades
+    entities = []
+    current_entity = ""
+    current_type = ""
+    for word, tag in zip(words, ner_labels):
+        if tag.startswith("B-"):
+            if current_entity:
+                entities.append(
+                    {"entity": current_entity.strip(), "type": current_type}
+                )
+            current_entity = word
+            current_type = tag[2:]
+        elif tag.startswith("I-") and current_type == tag[2:]:
+            current_entity += " " + word
+        else:
+            if current_entity:
+                entities.append(
+                    {"entity": current_entity.strip(), "type": current_type}
+                )
+                current_entity = ""
+                current_type = ""
+
+    if current_entity:
+        entities.append({"entity": current_entity.strip(), "type": current_type})
+
+    # Construir input para generate_alert
+    instruction = f"""Generate a reputation alert in English using this format:
+"REPUTATION ALERT: [MAIN_ENTITY] - [SENTIMENT]. Summary: [CONCISE_TEXT]"
+
+Input data:
+- Original text: "{text.strip()}"
+- Image description: "{caption if caption else 'No image'}"
+- Detected entities: {entities}
+- Overall sentiment: {sentiment_label}"""
+
+    input_data = {"instruction": instruction}
+
+    # Generar alerta
+    alert = generate_alert(input_data)
+    return alert
 
 
 # CSS personalizado con la fuente Poppins
@@ -88,10 +125,10 @@ h1 {
     font-family: 'Poppins', sans-serif;
     color: #1E3A8A;
     text-align: center;
-    font-size: 48px; /* Tamaño de fuente más grande */
+    font-size: 48px;
     font-weight: 600;
-    overflow: hidden; /* Elimina la barra de desplazamiento */
-    white-space: nowrap; /* Evita que el texto se rompa */
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 p {
@@ -100,16 +137,15 @@ p {
 }
 """
 
-
-# Título y descripción de la aplicación
+# Título y descripción
 title = """
 <div style='text-align: center;'>
     <h1 style='font-family: "Poppins", sans-serif;'>🧠 NerD</h1>
 </div>
 """
+description = "<p style='text-align: center;'>Upload an image, enter text, or both to get a reputation alert from our deep learning model.</p>"
 
-description = "<p style='text-align: center;'>Upload an image, enter text, or both to get predictions from our deep learning model.</p>"
-
+# Interfaz Gradio
 with gr.Blocks(css=custom_css) as demo:
     gr.Markdown(title)
     gr.Markdown(description)
@@ -122,14 +158,12 @@ with gr.Blocks(css=custom_css) as demo:
 
     analyze_btn = gr.Button("Analyze")
 
-    caption_output = gr.Markdown()
-    ner_output = gr.Markdown()
-    sentiment_output = gr.Markdown()
+    alert_output = gr.Textbox(label="📢 Reputation Alert", lines=4)
 
     analyze_btn.click(
         fn=analyze_input,
         inputs=[image_input, text_input],
-        outputs=[caption_output, ner_output, sentiment_output],
+        outputs=alert_output,
     )
 
 if __name__ == "__main__":
