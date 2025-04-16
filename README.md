@@ -7,6 +7,10 @@
 
 This project was developed as part of a **Deep Learning and NLP** course at the **Universidad Pontificia Comillas, ICAI**, within the **Engineering Mathematics** program.
 
+> 🎯 *From raw text and images to structured alerts — NerD empowers real-time reputation monitoring using deep learning.*
+
+---
+
 ## 📜 Table of Contents
 - [📌 Project Overview](#-project-overview)
 - [🛠️ Installation](#️-installation)
@@ -97,9 +101,11 @@ The system exposes a simple web-based interface:
 
 The app will:
 
-- Generate a caption for the image.
-- Perform NER + SA on the text + image caption.
-- Display extracted entities and sentiment.
+- Generate a caption from the uploaded image (if provided).
+
+- Analyze the full text + caption to detect entities and sentiment.
+
+- Automatically generate a reputation alert using a large language model.
 
 ⚠️ **Make sure the pretrained models are present in the `models/` folder before running the app.**
 
@@ -130,6 +136,7 @@ NerD/
     ├── data.py
     ├── embeddings.py
     ├── evaluate.py
+    ├── alert_generation.py
     ├── image_captioning.py
     ├── main.py
     ├── models.py
@@ -155,6 +162,7 @@ NerD/
 - **NER with Sequence Tagging**  
 - **Binary Sentiment Classification**  
 - **Image-to-Text Captioning**
+- **Instruction-tuned Text Generation (LLM prompts)**
 
 ## 🙌 Credits
 
