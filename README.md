@@ -17,7 +17,7 @@ This project was developed as part of a **Deep Learning and NLP** course at the 
 
 ## 📌 Project Overview
 
-NerD combines multiple deep learning components to perform robust analysis of multimodal data:
+NerD combines multiple deep learning components to perform robust analysis of multimodal data, and now includes automated reputation alert generation powered by a large language model.
 
 ### 🔁 Multitask Learning Model
 - A custom **BiLSTMTagger** model performs both:
@@ -29,20 +29,31 @@ NerD combines multiple deep learning components to perform robust analysis of mu
 
 ### 🖼️ Image Captioning Integration
 - A pretrained model from **Hugging Face** generates captions from input images.
-- These captions are incorporated into the input pipeline to enhance entity and sentiment prediction.
+- Captions are merged with user-provided text to improve entity recognition and sentiment prediction.
+
+### 🤖 Reputation Alert Generation
+- Fully integrated alert generation module using the **DeepSeek-R1-Distill-Qwen-1.5B** language model from Hugging Face.
+- The model receives structured input containing:
+  - Original text
+  - Image description
+  - Detected entities (via NER)
+  - Overall sentiment
+- Generates human-readable alerts like:
+  > `REPUTATION ALERT: CEO - negative. Summary: Public backlash over controversial remarks.`
+- Alerts are generated dynamically in the app UI with a single click.
 
 ### 📊 Dataset Curation
-- Reformatted and preprocessed **MultiNERD** and other datasets.
-- Auto-labeled sentiment using a pretrained model.
-- Balanced dataset:
+- Reformatted and preprocessed **MultiNERD** and additional datasets.
+- Sentiment labels automatically inferred using a pretrained model.
+- Final dataset:
   - 40,000 training samples
   - 10,000 testing samples
-  - Equal distribution of positive and negative sentiments
+  - Balanced sentiment distribution (positive/negative)
 
 ### ✅ Preliminary Results
-- High NER performance on key entity types: `PERSON`, `ORG`, `LOC`
+- Strong NER performance on key entity types: `PERSON`, `ORG`, `LOC`
 - SA achieves **84% validation accuracy**
-- Alert generation pipeline is planned but not yet deployed
+- End-to-end alert generation pipeline now **fully deployed and functional** within the app
 
 ## 🛠️ Installation
 
