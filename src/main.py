@@ -41,6 +41,16 @@ print("Modelos cargados.")
 
 # ==== PREDICCIÓN ====
 def predict_from_text(text):
+    """
+    Performs Named Entity Recognition (NER) and Sentiment Analysis (SA) on a given input text using a pretrained model.
+
+    Args:
+        text (str): The input text to be analyzed.
+
+    Returns:
+        None: Prints the NER tags for each word and the overall sentiment ("Positivo" or "Negativo") to the console.
+    """
+
     words = text.strip().split()
     embeddings = [get_embedding(word, w2v_model) for word in words]
     input_tensor = torch.stack(embeddings).unsqueeze(0).to(DEVICE)  # (1, seq_len, 300)

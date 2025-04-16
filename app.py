@@ -5,8 +5,6 @@ from src.models import BiLSTMTagger
 from src.embeddings import get_embedding
 from src.image_captioning import generate_local_caption
 import pickle
-
-# Importar función de generación de alertas
 from src.alert_generation import generate_alert
 
 # Cargar modelos con caché
@@ -22,8 +20,18 @@ model.load_state_dict(torch.load("models/best_model.pt", map_location="cpu"))
 model.eval()
 
 
-# Nueva función principal: devuelve solo la alerta
+# Función principal que genera alerta
 def analyze_input(image, text):
+    """
+    Analyzes a combination of image and text input to detect named entities, determine sentiment, and generate a reputation alert.
+
+    Args:
+        image (Image.Image or None): A PIL Image object to be analyzed, or None if no image is provided.
+        text (str): The input text to be analyzed.
+
+    Returns:
+        str: A generated reputation alert message based on the extracted entities, sentiment, and input data.
+    """
     final_text = text
     caption = None
 
@@ -71,7 +79,6 @@ def analyze_input(image, text):
     if current_entity:
         entities.append({"entity": current_entity.strip(), "type": current_type})
 
-    # Construir input para generate_alert
     instruction = f"""Generate a reputation alert in English using this format:
 "REPUTATION ALERT: [MAIN_ENTITY] - [SENTIMENT]. Summary: [CONCISE_TEXT]"
 
@@ -82,13 +89,75 @@ Input data:
 - Overall sentiment: {sentiment_label}"""
 
     input_data = {"instruction": instruction}
-
-    # Generar alerta
     alert = generate_alert(input_data)
     return alert
 
 
-# CSS personalizado con la fuente Poppins
+# Función que devuelve detalles (entidades, sentimiento, caption)
+def get_details(image, text):
+    """
+    Analyzes a combination of image and text input to detect named entities, determine sentiment, and generate a detailed analysis.
+
+    Args:
+        image (Image.Image or None): A PIL Image object to be analyzed, or None if no image is provided.
+        text (str): The input text to be analyzed.
+
+    Returns:
+        str: A detailed analysis message based on the extracted entities, sentiment, and input data.
+    """
+    final_text = text
+    caption = None
+
+    if image:
+        caption = generate_local_caption(image)
+        final_text += " " + (caption if caption else "")
+
+    if not final_text.strip():
+        return "⚠️ Could not process the input."
+
+    words = final_text.strip().split()
+    embeddings = [get_embedding(word, w2v_model) for word in words]
+    input_tensor = torch.stack(embeddings).unsqueeze(0)
+    lengths = torch.tensor([len(words)])
+
+    with torch.no_grad():
+        ner_logits, sa_logits = model(input_tensor, lengths)
+        ner_preds = torch.argmax(ner_logits, dim=-1)[0][: lengths.item()].cpu().tolist()
+        sentiment_label = "Positive" if sa_logits.item() > 0.5 else "Negative"
+
+    ner_labels = [idx2tag[i] for i in ner_preds]
+
+    entities = []
+    current_entity = ""
+    current_type = ""
+    for word, tag in zip(words, ner_labels):
+        if tag.startswith("B-"):
+            if current_entity:
+                entities.append(f"{current_entity.strip()} ({current_type})")
+            current_entity = word
+            current_type = tag[2:]
+        elif tag.startswith("I-") and current_type == tag[2:]:
+            current_entity += " " + word
+        else:
+            if current_entity:
+                entities.append(f"{current_entity.strip()} ({current_type})")
+                current_entity = ""
+                current_type = ""
+
+    if current_entity:
+        entities.append(f"{current_entity.strip()} ({current_type})")
+
+    details = (
+        f"🧾 Detected Entities:\n- " + "\n- ".join(entities)
+        if entities
+        else "No named entities found."
+    )
+    details += f"\n\n💬 Sentiment: {sentiment_label}"
+    details += f"\n\n🖼️ Image Caption: {caption if caption else 'No image or no caption generated.'}"
+    return details
+
+
+# Estilo personalizado
 custom_css = """
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
 
@@ -157,13 +226,21 @@ with gr.Blocks(css=custom_css) as demo:
         )
 
     analyze_btn = gr.Button("Analyze")
+    details_btn = gr.Button("Details", variant="secondary")
 
     alert_output = gr.Textbox(label="📢 Reputation Alert", lines=4)
+    details_output = gr.Textbox(label="🔍 Analysis Details", lines=8)
 
     analyze_btn.click(
         fn=analyze_input,
         inputs=[image_input, text_input],
         outputs=alert_output,
+    )
+
+    details_btn.click(
+        fn=get_details,
+        inputs=[image_input, text_input],
+        outputs=details_output,
     )
 
 if __name__ == "__main__":

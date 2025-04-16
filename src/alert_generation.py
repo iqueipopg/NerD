@@ -7,6 +7,15 @@ generator = pipeline("text-generation", model=model_name, tokenizer=tokenizer)
 
 
 def generate_alert(input_data):
+    """
+    Generates an alert message based on a given instruction using a text generation model.
+
+    Args:
+        input_data (dict): A dictionary containing the instruction under the key 'instruction'.
+
+    Returns:
+        str: The generated alert message as a string.
+    """
 
     prompt = f"""<|im_start|>user
 {input_data['instruction']}

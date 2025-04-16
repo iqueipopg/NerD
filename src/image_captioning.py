@@ -19,6 +19,16 @@ model = (
 
 
 def generate_local_caption(image: Image.Image) -> str:
+    """
+    Generates a descriptive caption for a given image using a pretrained image captioning model.
+
+    Args:
+        image (Image.Image): A PIL Image object for which the caption is to be generated.
+
+    Returns:
+        str: A string representing the generated caption for the input image. Returns an empty string if an error occurs during processing.
+    """
+
     try:
         # Ahora procesamos directamente el objeto PIL.Image
         inputs = processor(image.convert("RGB"), return_tensors="pt").to(device, dtype)
