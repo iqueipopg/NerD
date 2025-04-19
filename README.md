@@ -107,7 +107,7 @@ The app will:
 
 - Automatically generate a reputation alert using a large language model.
 
-⚠️ **Make sure the pretrained models are present in the `models/` folder before running the app.**
+⚠️ **Make sure the pretrained models are present in the `models/` folder before running the app. you can run de run.py script if needed**
 
 ## 📂 Project Structure
 
@@ -135,6 +135,7 @@ NerD/
 └── src/                    # Source code
     ├── data.py
     ├── embeddings.py
+    ├── run.py
     ├── evaluate.py
     ├── alert_generation.py
     ├── image_captioning.py
