@@ -39,6 +39,4 @@ def generate_local_caption(image: Image.Image) -> str:
         return ""
 
 
-if __name__ == "__main__":
-    print(f"Image: Elon Musk, Caption: {generate_local_caption("data/elon.jpg")}")
-    print(f"Image: Donald Trump, Caption: {generate_local_caption("data/trump.jpg")}")
+
