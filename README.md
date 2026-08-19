@@ -4,7 +4,7 @@
 
 **NerD** is an NLP system that turns unstructured news articles and social media posts into structured output: named entities and a sentiment assessment. A single multitask model performs token-level Named Entity Recognition (NER) and sentence-level Sentiment Analysis (SA) in one pass, and an integrated language model converts the structured result into a human-readable reputation alert.
 
-Developed for the Deep Learning and NLP course at Universidad Pontificia Comillas (ICAI), Engineering Mathematics (iMAT) program.
+Developed for the Deep Learning and NLP course at Universidad Pontificia Comillas (ICAI), Mathematical Engineering and Artificial Intelligence (iMAT) program.
 
 ---
 
@@ -59,7 +59,7 @@ Prerequisites: Python 3.8+, the pretrained word2vec model (`GoogleNews-vectors-n
 git clone https://github.com/iqueipopg/NerD.git
 cd NerD
 python -m venv venv
-source venv/bin/activate      # Windows: .\venv\Scripts\activate
+source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python app.py
 ```
