@@ -47,7 +47,9 @@ If an image is provided, a pretrained captioning model describes it and the capt
 
 ## Results
 
-- Strong NER performance on the key entity types PERSON, ORG and LOC.
+- NER: 97.22 percent token accuracy and a weighted F1 of 0.9701. The frequent labels (PER, LOC, ORG)
+  score above 0.92 F1; rare labels such as B-BIO and B-VEHI score near zero, so the weighted figure
+  is carried by the common classes. Full per-label report in `docs/NerD_Final_Paper.pdf`.
 - Sentiment analysis reaches 84 percent validation accuracy.
 - The end-to-end alert generation pipeline runs inside the app.
 
