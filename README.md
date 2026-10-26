@@ -42,6 +42,7 @@ If an image is provided, a pretrained captioning model describes it and the capt
 ### Data
 
 - Reformatted and preprocessed **MultiNERD** (Tedeschi and Navigli, NAACL 2022) plus additional datasets.
+- The sentiment data in `data/nsa/` was provided by the course staff.
 - Sentiment labels inferred with a pretrained model.
 - Final dataset: 40,000 training samples and 10,000 test samples with a balanced sentiment distribution.
 
