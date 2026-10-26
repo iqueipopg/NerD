@@ -41,7 +41,7 @@ If an image is provided, a pretrained captioning model describes it and the capt
 
 ### Data
 
-- Reformatted and preprocessed **MultiNERD** plus additional datasets.
+- Reformatted and preprocessed **MultiNERD** (Tedeschi and Navigli, NAACL 2022) plus additional datasets.
 - Sentiment labels inferred with a pretrained model.
 - Final dataset: 40,000 training samples and 10,000 test samples with a balanced sentiment distribution.
 
@@ -102,6 +102,10 @@ NerD/
 Developed by **Beltrán Sánchez Careaga**, **Eugenio Ribón Novoa**, **Jorge Kindelan Navarro** and **Ignacio Queipo de Llano Pérez-Gascón**.
 
 Thanks to our professors **Jaime Pizarroso Gonzalo** and **Andrés Occhipinti Liberman** for their guidance throughout the course.
+
+## License
+
+The code is released under the [MIT License](LICENSE). The MultiNERD files in `data/multinerd/` are redistributed under their original [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) license and are not covered by MIT.
 
 ---
 
