@@ -5,3 +5,6 @@
 __pycache__/
 models/
 venv/
+__MACOSX/
+*.py[cod]
+.ipynb_checkpoints/
